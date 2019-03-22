@@ -14,29 +14,33 @@ class PrioritizedReplayMemory:
     def __init__(self, n_states, dim_actions, capacity, epsilon=1e-4, alpha=0.6):
         self.capacity = capacity
         self.ptr = 0
-        self.memory = torch.zeros([capacity, n_states*2+dim_actions+2]).to(device)
+        self.memory = torch.zeros([capacity, n_states*2+dim_actions+1]).to(device)
+        self.priority = np.zeros([capacity])
         self.epsilon = epsilon
         self.alpha = alpha
 
     def store_transition(self, state, state_next, action, reward):
         idx = self.ptr % self.capacity
-        max_prob = torch.max(self.memory[:, 0]).detach().cpu().numpy()
-        self.memory[idx, :] = torch.from_numpy(np.hstack([max_prob, state, state_next, action, reward]))
+        
+        pri = self.priority.max()
+        self.priority[idx] = pri
+        
+        self.memory[idx, :] = torch.from_numpy(np.hstack([state, state_next, action, reward]))
         self.ptr += 1
 
     def sample_transitions(self, sample_size):
         size = np.min([self.capacity, self.ptr])
-        prob = self.memory[:size, 0].detach().cpu().numpy() + self.epsilon
-        prob = prob ** self.alpha
+        prob = self.priority[:size]
         prob = prob / prob.sum()
         idx = np.random.choice(size, p=prob, size=sample_size)
-        return self.memory[idx, 1:], idx
+        return self.memory[idx], idx
         
     def update_td(self, idx, td):
-        self.memory[idx, 0:1] = td
+        self.priority[idx] = (td + self.epsilon)
 
     def reset(self):
         self.ptr = 0
+        self.priority = np.zeros([self.capacity])
 
 class DQN_model(nn.Module):
     def __init__(self, n_states, n_actions, n_units = [200, 100]):
