@@ -9,7 +9,7 @@ import numpy as np
 
 env = gym.make('Pendulum-v0').unwrapped
 
-N_TIMES = 5
+N_TIMES = 20
 N_EP = 300
 N_STEP = 200
 
