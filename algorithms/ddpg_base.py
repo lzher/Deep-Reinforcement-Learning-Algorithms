@@ -31,7 +31,7 @@ class ReplayMemory:
         self.ptr = 0
 
 class ActorNet(nn.Module):
-    def __init__(self, n_states, n_actions, n_units = [50, 10], init_w=1e-5):
+    def __init__(self, n_states, n_actions, n_units = [20, 10], init_w=1e-5):
         super(ActorNet, self).__init__()
         self.fc1 = nn.Linear(n_states, n_units[0])
         self.fc2 = nn.Linear(n_units[0], n_units[1])
@@ -44,14 +44,14 @@ class ActorNet(nn.Module):
         self.fc_act.weight.data.uniform_(-init_w, init_w)
         
     def forward(self, x, train=True):
-        x = x.view(x.size(0), -1, x.size(-1))
+        # x = x.view(x.size(0), -1, x.size(-1))
         x = self.fc1(x)
-        x = self.bn1(x)
+        # x = self.bn1(x)
         x = F.leaky_relu(x)
         x = self.fc2(x)
-        x = self.bn2(x)
+        # x = self.bn2(x)
         x = F.leaky_relu(x)
-        x = x.view(x.size(0), -1)
+        # x = x.view(x.size(0), -1)
         x = self.fc_act(x)
         x = F.sigmoid(x)
         return x
@@ -62,7 +62,7 @@ class ActorNet(nn.Module):
         self.fc_act.reset_parameters()
 
 class CriticNet(nn.Module):
-    def __init__(self, n_states, n_actions, n_units = [10, 50, 10], init_w=1e-5):
+    def __init__(self, n_states, n_actions, n_units = [5, 20, 10], init_w=1e-5):
         super(CriticNet, self).__init__()
         self.fc_s = nn.Linear(n_states, n_units[0])
         # self.fc_a = nn.Linear(n_actions, n_units[0])
@@ -82,14 +82,14 @@ class CriticNet(nn.Module):
         s = F.leaky_relu(s)
         # a = self.fc_a(a)
         x = torch.cat([s, a], 1)
-        x = x.view(x.size(0), -1, x.size(-1))
+        # x = x.view(x.size(0), -1, x.size(-1))
         x = self.fc1(x)
-        x = self.bn1(x)
+        # x = self.bn1(x)
         x = F.leaky_relu(x)
         x = self.fc2(x)
-        x = self.bn2(x)
+        # x = self.bn2(x)
         x = F.leaky_relu(x)
-        x = x.view(x.size(0), -1)
+        # x = x.view(x.size(0), -1)
         x = self.fc_value(x)
         return x
         
@@ -102,7 +102,8 @@ class CriticNet(nn.Module):
         
 class DDPG:
     def __init__(self, n_states, n_actions, gamma=0.99, \
-                 tau=1e-4, actor_lr=1e-4, critic_lr=2e-4, epsilon=0.1):
+                 tau=1e-3, actor_lr=4e-4, critic_lr=8e-4, epsilon=0.1,
+                 critic_units=[5,20,10], actor_units=[20,10]):
         self.n_states = n_states
         self.n_actions = n_actions
         self.gamma = gamma
@@ -125,9 +126,6 @@ class DDPG:
         state = torch.from_numpy(np.array([state])).float().to(device)
         action = self.actor_eval(state, train=False).detach().cpu().numpy()
         action = action.squeeze(0)
-        for i in range(self.n_actions):
-            if np.random.uniform() < self.epsilon:
-                action[i] = np.random.uniform()
         return action
         
     def replace_target(self):

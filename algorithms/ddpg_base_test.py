@@ -9,8 +9,8 @@ import numpy as np
 
 env = gym.make('Pendulum-v0').unwrapped
 
-N_TIMES = 1
-N_EP = 300
+N_TIMES = 5
+N_EP = 500
 N_STEP = 200
 
 N_WARMUP_EP = 20
@@ -19,8 +19,8 @@ N_REPLACE_TARGET = 200
 N_MEM = 30000
 N_BATCH = 32
 
-ACT_VAR = 3
-ACT_VAR_DEST = 0.1
+ACT_VAR = 1
+ACT_VAR_DEST = 0.01
 ACT_VAR_STEP = 50 * N_STEP
 ACT_VAR_DECAY = pow(ACT_VAR_DEST / ACT_VAR, 1 / ACT_VAR_STEP)
 epsilon = 0.1
@@ -54,7 +54,7 @@ save_rewards = np.zeros((N_TIMES, N_EP))
 ddpg = DDPG(s_dim, a_dim)
 mem = ReplayMemory(s_dim, a_dim, N_MEM)
 
-tqdm = lambda x: x
+# tqdm = lambda x: x
 
 for t in range(N_TIMES):
     print("Time: %d" % t)
@@ -68,11 +68,8 @@ for t in range(N_TIMES):
         state = env.reset()
         for step in range(N_STEP):
             # env.render()
-            if np.random.uniform() < epsilon:
-                action = np.random.uniform()
-            else:
-                action = ddpg.choose_action(state)[0] + np.random.normal(0, ACT_VAR)
-                action = np.clip(action, 0, 1)
+            action = ddpg.choose_action(state)[0] + np.random.normal(0, ACT_VAR)
+            action = np.clip(action, 0, 1)
             act = action * a_bound * 2 - a_bound
             state_next, reward, done, _ = env.step([act])
             
@@ -96,7 +93,7 @@ for t in range(N_TIMES):
             var=ACT_VAR)
         log_fp.write(report)
         log_fp.flush()
-        print(report)
+        # print(report)
         save_rewards[t, ep] = reward
 
 step_fn = os.path.join(LOG_PATH, 'rewards.mat')

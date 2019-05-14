@@ -10,7 +10,7 @@ import numpy as np
 env = gym.make('Pendulum-v0').unwrapped
 
 N_TIMES = 1
-N_EP = 300
+N_EP = 3000
 N_STEP = 200
 
 N_WARMUP_EP = 20
@@ -19,9 +19,16 @@ N_REPLACE_TARGET = 200
 N_MEM = 30000
 N_BATCH = 32
 
+ACT_VAR = 1
+ACT_VAR_DEST = 0.01
+ACT_VAR_STEP = 50 * N_STEP
+ACT_VAR_DECAY = pow(ACT_VAR_DEST / ACT_VAR, 1 / ACT_VAR_STEP)
+epsilon = 0.1
+
 s_dim = env.observation_space.shape[0]
 a_dim = env.action_space.shape[0]
 a_bound = env.action_space.high[0]
+print(a_bound)
 
 ## log files
 
@@ -61,25 +68,32 @@ for t in range(N_TIMES):
         state = env.reset()
         for step in range(N_STEP):
             env.render()
-            action = ddpg.choose_action(state)[0]
+            if np.random.uniform() < epsilon:
+                action = np.random.uniform()
+            else:
+                action = ddpg.choose_action(state)[0] + np.random.normal(0, ACT_VAR)
+                action = np.clip(action, 0, 1)
             act = action * a_bound * 2 - a_bound
             state_next, reward, done, _ = env.step([act])
             
+            # print(state, state_next, action, reward, act)
             mem.store_transition(state, state_next, action, reward)
             
             if ep > N_WARMUP_EP:
                 ddpg.learn(mem, N_BATCH)
                 train_step += 1
+                ACT_VAR *= ACT_VAR_DECAY
                 
             state = state_next
             ep_reward += reward
             total_step += 1
             
-        report = "E: {ep} T: {ts} R: {reward}\n".format(
+        report = "E: {ep} T: {ts} V: {var} R: {reward}\n".format(
             ep=ep,
             step=step,
             reward=ep_reward,
-            ts=total_step)
+            ts=total_step,
+            var=ACT_VAR)
         log_fp.write(report)
         log_fp.flush()
         print(report)
@@ -93,4 +107,4 @@ plt.xlabel('Time slot')
 plt.ylabel('Rewards')
 plt.show()
 
-
+print(LOG_PATH)
