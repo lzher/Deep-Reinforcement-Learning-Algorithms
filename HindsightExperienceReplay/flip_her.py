@@ -12,7 +12,7 @@ print(start_time)
 
 N_BITS = 5
 
-N_TIMES = 50
+N_TIMES = 10
 N_EP = 1000
 N_STEP = 20
 N_WARMUP_EP = 5
@@ -59,16 +59,21 @@ for t in range(N_TIMES):
                 break
                 
         ep_reward = 0
-        if done:
-            for e in ep_mem:
-                reward = e.reward + 1
-                mem.store_transition(e.state, e.state_next, e.action, reward)
-                ep_reward += reward
-        else:
-            for e in ep_mem:
-                reward = e.reward - 1
-                mem.store_transition(e.state, e.state_next, e.action, reward)
-                ep_reward += reward
+        for e in ep_mem:
+            mem.store_transition(e.state, e.state_next, e.action, e.reward)
+            ep_reward += e.reward
+        if not done:
+            fake_target = ep_mem[-1].state_next[:N_BITS]
+            for i in range(len(ep_mem)):
+                e = ep_mem[i]
+                state = e.state.copy()
+                state_next = e.state_next.copy()
+                state[N_BITS:] = fake_target
+                state_next[N_BITS:] = fake_target
+                reward = e.reward
+                if(i == step):
+                    reward += 1
+                mem.store_transition(state, state_next, e.action, reward)
                 
         print("T: {t}/{tt} E: {ep} S: {step} R: {reward}".format(t=t, tt=N_TIMES, ep=ep, step=step, reward=ep_reward / (step + 1)))
         save_reward[t, ep] = int(done) / (step + 1)
