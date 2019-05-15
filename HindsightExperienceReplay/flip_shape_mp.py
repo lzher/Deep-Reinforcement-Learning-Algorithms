@@ -14,7 +14,7 @@ N_BITS = 5
 
 N_PROCESSES = 10
 N_TIMES = 5
-N_EP = 10
+N_EP = 1000
 N_STEP = 20
 N_WARMUP_EP = 5
 
@@ -28,8 +28,6 @@ N_ACTION = N_BITS
 def train_job(prci, ret):
     save_reward = np.zeros((N_TIMES, N_EP))
 
-    EpMemory = namedtuple('EpMemory', ['state', 'state_next', 'action', 'reward'])
-
     dqn = DQN(SDIM, N_ACTION, ADIM)
     mem = ReplayMemory(SDIM, ADIM, N_MEM)
 
@@ -41,7 +39,7 @@ def train_job(prci, ret):
         for ep in range(N_EP):
             current, target = env.reset()
             state = np.hstack([current, target])
-            ep_mem = []
+            ep_reward = 0
             for step in range(N_STEP):
                 action = dqn.choose_action(state)
                 state_next, reward, done, _ = env.step(action)
@@ -49,7 +47,10 @@ def train_job(prci, ret):
                 current, target = state_next
                 state_next = np.hstack([current, target])
                 
-                ep_mem.append(EpMemory(state=state, state_next=state_next, action=action, reward=reward))
+                reward = -abs(current - target).sum()
+                ep_reward += reward
+                
+                mem.store_transition(state, state_next, action, reward)
                 
                 if ep >= N_WARMUP_EP:
                     dqn.learn(mem, N_BATCH)
@@ -59,31 +60,15 @@ def train_job(prci, ret):
                 if done:
                     break
                     
-            ep_reward = 0
-            for e in ep_mem:
-                mem.store_transition(e.state, e.state_next, e.action, e.reward)
-                ep_reward += e.reward
-            if not done:
-                fake_target = ep_mem[-1].state_next[:N_BITS]
-                for i in range(len(ep_mem)):
-                    e = ep_mem[i]
-                    state = e.state.copy()
-                    state_next = e.state_next.copy()
-                    state[N_BITS:] = fake_target
-                    state_next[N_BITS:] = fake_target
-                    reward = e.reward
-                    if(i == step):
-                        reward += 1
-                    mem.store_transition(state, state_next, e.action, reward)
-                    
-            print("P: {p} T: {t}/{tt} E: {ep} S: {step} R: {reward}".format(p=prci, t=t, tt=N_TIMES, ep=ep, step=step, reward=ep_reward / (step + 1)))
-            save_reward[t, ep] = int(done) / (step + 1)
+            print("P: {p} T: {t}/{tt} E: {ep} S: {step} R: {reward}".format(p=prci, t=t, tt=N_TIMES, ep=ep, step=step, reward=ep_reward))
+            save_reward[t, ep] = int(done) / (step+1)
     ret[prci] = save_reward
     
 if __name__ == '__main__':
     
+    basename = os.path.basename(__file__).split('.')[0]
     start_time = datetime.datetime.now().strftime('%m%d%H%M%S')
-    print(start_time)
+    print(basename, start_time)
     
     mp.set_start_method('spawn')
     ret = mp.Manager().dict()
@@ -98,11 +83,10 @@ if __name__ == '__main__':
     
     for prci in ret.keys():
         save_reward[prci*N_TIMES:(prci+1)*N_TIMES, :] = ret[prci]
-    
-    basename = os.path.basename(__file__).split('.')[0]
+        
     sio.savemat('logs/%s_%s.mat' % (basename, start_time), {'reward': save_reward})
     end_time = datetime.datetime.now().strftime('%m%d%H%M%S')
-    print(start_time, end_time)
+    print(basename, start_time, end_time)
         
     plt.plot(save_reward.mean(0))
     plt.show()

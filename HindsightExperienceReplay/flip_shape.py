@@ -38,12 +38,16 @@ for t in range(N_TIMES):
     for ep in range(N_EP):
         current, target = env.reset()
         state = np.hstack([current, target])
+        ep_reward = 0
         for step in range(N_STEP):
             action = dqn.choose_action(state)
             state_next, reward, done, _ = env.step(action)
             
             current, target = state_next
             state_next = np.hstack([current, target])
+            
+            reward = -abs(current - target).sum()
+            ep_reward += reward
             
             mem.store_transition(state, state_next, action, reward)
             
@@ -55,8 +59,8 @@ for t in range(N_TIMES):
             if done:
                 break
                 
-        print("T: {t}/{tt} E: {ep} S: {step} R: {reward}".format(t=t, tt=N_TIMES, ep=ep, step=step, reward=reward / (step + 1)))
-        save_reward[t, ep] = reward / (step + 1)
+        print("T: {t}/{tt} E: {ep} S: {step} R: {reward}".format(t=t, tt=N_TIMES, ep=ep, step=step, reward=ep_reward))
+        save_reward[t, ep] = ep_reward
     
 sio.savemat('logs/%s_%s.mat' % (basename, start_time), {'reward': save_reward})
 end_time = datetime.datetime.now().strftime('%m%d%H%M%S')

@@ -7,10 +7,10 @@ import scipy.io as sio
 import datetime
 import torch.multiprocessing as mp
 
-N_BITS = 5
+N_BITS = 20
 
-N_PROCESSES = 5
-N_TIMES = 10
+N_PROCESSES = 10
+N_TIMES = 5
 N_EP = 1000
 N_STEP = 20
 N_WARMUP_EP = 5
