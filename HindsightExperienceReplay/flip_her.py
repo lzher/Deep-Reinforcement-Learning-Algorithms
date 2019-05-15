@@ -12,7 +12,7 @@ print(start_time)
 
 N_BITS = 5
 
-N_TIMES = 10
+N_TIMES = 50
 N_EP = 1000
 N_STEP = 20
 N_WARMUP_EP = 5
@@ -79,7 +79,7 @@ for t in range(N_TIMES):
         save_reward[t, ep] = int(done) / (step + 1)
         save_true_reward[t, ep] = ep_reward / (step + 1)
     
-sio.savemat('logs/flip_ep_%s.mat' % (start_time), {'reward': save_reward, 'true_reward': save_true_reward})
+sio.savemat('logs/flip_her_%s.mat' % (start_time), {'reward': save_reward, 'true_reward': save_true_reward})
 end_time = datetime.datetime.now().strftime('%m%d%H%M%S')
 print(start_time, end_time)
     
