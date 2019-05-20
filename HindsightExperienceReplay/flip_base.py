@@ -14,11 +14,11 @@ print(basename, start_time)
 N_BITS = 20
 
 N_TIMES = 1
-N_EP = 10000
+N_EP = 100000
 N_STEP = N_BITS * 4
 N_WARMUP_EP = 5
 
-N_MEM = 30000
+N_MEM = 3000000
 N_BATCH = 32
 
 SDIM = N_BITS * 2
@@ -55,7 +55,7 @@ for t in range(N_TIMES):
             if done:
                 break
                 
-        print("T: {t}/{tt} E: {ep} S: {step} R: {reward}".format(t=t, tt=N_TIMES, ep=ep, step=step, reward=reward / (step + 1)))
+        print("T: {t}/{tt} E: {ep}/{ept} S: {step} R: {reward}".format(t=t, tt=N_TIMES, ep=ep, ept=N_EP, step=step, reward=reward / (step + 1)))
         save_reward[t, ep] = reward / (step + 1)
     
 sio.savemat('logs/%s_%s.mat' % (basename, start_time), {'reward': save_reward})

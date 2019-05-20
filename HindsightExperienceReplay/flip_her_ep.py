@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io as sio
 import datetime
+from collections import namedtuple
 import os
 
 basename = os.path.basename(__file__).split('.')[0]
@@ -27,6 +28,8 @@ N_ACTION = N_BITS
 
 save_reward = np.zeros((N_TIMES, N_EP))
 
+EpMemory = namedtuple('EpMemory', ['state', 'state_next', 'action', 'reward'])
+
 dqn = DQN(SDIM, N_ACTION, ADIM)
 mem = ReplayMemory(SDIM, ADIM, N_MEM)
 
@@ -38,7 +41,7 @@ for t in range(N_TIMES):
     for ep in range(N_EP):
         current, target = env.reset()
         state = np.hstack([current, target])
-        ep_reward = 0
+        ep_mem = []
         for step in range(N_STEP):
             action = dqn.choose_action(state)
             state_next, reward, done, _ = env.step(action)
@@ -46,10 +49,7 @@ for t in range(N_TIMES):
             current, target = state_next
             state_next = np.hstack([current, target])
             
-            reward = -abs(current - target).sum()
-            ep_reward += reward
-            
-            mem.store_transition(state, state_next, action, reward)
+            ep_mem.append(EpMemory(state=state, state_next=state_next, action=action, reward=reward))
             
             if ep >= N_WARMUP_EP:
                 dqn.learn(mem, N_BATCH)
@@ -59,8 +59,32 @@ for t in range(N_TIMES):
             if done:
                 break
                 
-        print("T: {t}/{tt} E: {ep}/{ept} S: {step} R: {reward}".format(t=t, tt=N_TIMES, ep=ep, ept=N_EP, step=step, reward=ep_reward))
-        save_reward[t, ep] = int(done) / (step+1)
+        ep_reward = 0
+        if done:
+            for e in ep_mem:
+                reward = e.reward + 1
+                mem.store_transition(e.state, e.state_next, e.action, reward)
+                ep_reward += reward
+        else:
+            for e in ep_mem:
+                reward = e.reward
+                mem.store_transition(e.state, e.state_next, e.action, reward)
+                ep_reward += reward
+            fake_target = ep_mem[-1].state_next[:N_BITS]
+            for i in range(len(ep_mem)):
+                e = ep_mem[i]
+                state = e.state.copy()
+                state_next = e.state_next.copy()
+                state[N_BITS:] = fake_target
+                state_next[N_BITS:] = fake_target
+                if i == step:
+                    reward = e.reward + 2
+                else:
+                    reward = e.reward + 1
+                mem.store_transition(state, state_next, e.action, reward)
+                
+        print("T: {t}/{tt} E: {ep}/{ept} S: {step} R: {reward}".format(t=t, tt=N_TIMES, ep=ep, ept=N_EP, step=step, reward=ep_reward / (step + 1)))
+        save_reward[t, ep] = int(done) / (step + 1)
     
 sio.savemat('logs/%s_%s.mat' % (basename, start_time), {'reward': save_reward})
 end_time = datetime.datetime.now().strftime('%m%d%H%M%S')
