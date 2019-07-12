@@ -16,3 +16,7 @@ RL algorithms with pytorch.
 - [x] Prioritized Experience Replay
 - [x] Hindsight Experience Replay
 - [ ] Count-based Exploration
+
+## Problems and Contributions
+
+Feel free to open an issue or a pull request.
